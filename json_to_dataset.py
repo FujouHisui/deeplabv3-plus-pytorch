@@ -19,7 +19,7 @@ from labelme import utils
 if __name__ == '__main__':
     jpgs_path   = "datasets/JPEGImages"
     pngs_path   = "datasets/SegmentationClass"
-    classes     = ["_background_","aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+    classes     = ["background","tree-foliage", "tree-trunk", "bush", "fence", "structure", "dirt", "water", "rock", "log", "other-terrain", "sky", "grass", "mud","object","gravel"]
     # classes     = ["_background_","cat","dog"]
     
     count = os.listdir("./datasets/before/") 

@@ -15,7 +15,7 @@ from nets.deeplabv3_training import (get_lr_scheduler, set_optimizer_lr,
 from utils.callbacks import EvalCallback, LossHistory
 from utils.dataloader import DeeplabDataset, deeplab_dataset_collate
 from utils.utils import (download_weights, seed_everything, show_config,
-                         worker_init_fn)
+                         worker_init_fn, EarlyStopping)
 from utils.utils_fit import fit_one_epoch
 
 '''
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     #   num_classes     训练自己的数据集必须要修改的
     #                   自己需要的分类个数+1，如2+1
     #-----------------------------------------------------#
-    num_classes     = 21
+    num_classes     = 19
     #---------------------------------#
     #   所使用的的主干网络：
     #   mobilenet
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     #------------------------------#
     #   输入图片的大小
     #------------------------------#
-    input_shape         = [512, 512]
+    input_shape         = [672, 504]
     
     #----------------------------------------------------------------------------------------------------------------------------#
     #   训练分为两个阶段，分别是冻结阶段和解冻阶段。设置冻结阶段是为了满足机器性能不足的同学的训练需求。
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     #------------------------------------------------------------------#
     Init_Epoch          = 0
     Freeze_Epoch        = 50
-    Freeze_batch_size   = 8
+    Freeze_batch_size   = 32
     #------------------------------------------------------------------#
     #   解冻阶段训练参数
     #   此时模型的主干不被冻结了，特征提取网络会发生改变
@@ -170,12 +170,12 @@ if __name__ == "__main__":
     #   Unfreeze_batch_size     模型在解冻后的batch_size
     #------------------------------------------------------------------#
     UnFreeze_Epoch      = 100
-    Unfreeze_batch_size = 4
+    Unfreeze_batch_size = 23
     #------------------------------------------------------------------#
     #   Freeze_Train    是否进行冻结训练
     #                   默认先冻结主干训练后解冻训练。
     #------------------------------------------------------------------#
-    Freeze_Train        = True
+    Freeze_Train        = False
 
     #------------------------------------------------------------------#
     #   其它训练参数：学习率、优化器、学习率下降有关
@@ -220,19 +220,19 @@ if __name__ == "__main__":
     #   （二）此处设置评估参数较为保守，目的是加快评估速度。
     #------------------------------------------------------------------#
     eval_flag           = True
-    eval_period         = 5
+    eval_period         = 5 
 
     #------------------------------------------------------------------#
-    #   VOCdevkit_path  数据集路径
+    #   data_path  数据集路径
     #------------------------------------------------------------------#
-    VOCdevkit_path  = 'VOCdevkit'
+    data_path  = 'datasets'
     #------------------------------------------------------------------#
     #   建议选项：
     #   种类少（几类）时，设置为True
     #   种类多（十几类）时，如果batch_size比较大（10以上），那么设置为True
     #   种类多（十几类）时，如果batch_size比较小（10以下），那么设置为False
     #------------------------------------------------------------------#
-    dice_loss       = False
+    dice_loss       = True
     #------------------------------------------------------------------#
     #   是否使用focal loss来防止正负样本不平衡
     #------------------------------------------------------------------#
@@ -312,7 +312,7 @@ if __name__ == "__main__":
         if local_rank == 0:
             print("\nSuccessful Load Key:", str(load_key)[:500], "……\nSuccessful Load Key Num:", len(load_key))
             print("\nFail To Load Key:", str(no_load_key)[:500], "……\nFail To Load Key num:", len(no_load_key))
-            print("\n\033[1;33;44m温馨提示，head部分没有载入是正常现象，Backbone部分没有载入是错误的。\033[0m")
+            # print("\n\033[1;33;44m温馨提示，head部分没有载入是正常现象，Backbone部分没有载入是错误的。\033[0m")
 
     #----------------------#
     #   记录Loss
@@ -358,9 +358,9 @@ if __name__ == "__main__":
     #---------------------------#
     #   读取数据集对应的txt
     #---------------------------#
-    with open(os.path.join(VOCdevkit_path, "VOC2007/ImageSets/Segmentation/train.txt"),"r") as f:
+    with open(os.path.join(data_path, "lists/train.txt"),"r") as f:
         train_lines = f.readlines()
-    with open(os.path.join(VOCdevkit_path, "VOC2007/ImageSets/Segmentation/val.txt"),"r") as f:
+    with open(os.path.join(data_path, "lists/val.txt"),"r") as f:
         val_lines = f.readlines()
     num_train   = len(train_lines)
     num_val     = len(val_lines)
@@ -384,9 +384,9 @@ if __name__ == "__main__":
             if num_train // Unfreeze_batch_size == 0:
                 raise ValueError('数据集过小，无法进行训练，请扩充数据集。')
             wanted_epoch = wanted_step // (num_train // Unfreeze_batch_size) + 1
-            print("\n\033[1;33;44m[Warning] 使用%s优化器时，建议将训练总步长设置到%d以上。\033[0m"%(optimizer_type, wanted_step))
-            print("\033[1;33;44m[Warning] 本次运行的总训练数据量为%d，Unfreeze_batch_size为%d，共训练%d个Epoch，计算出总训练步长为%d。\033[0m"%(num_train, Unfreeze_batch_size, UnFreeze_Epoch, total_step))
-            print("\033[1;33;44m[Warning] 由于总训练步长为%d，小于建议总步长%d，建议设置总世代为%d。\033[0m"%(total_step, wanted_step, wanted_epoch))
+            # print("\n\033[1;33;44m[Warning] 使用%s优化器时，建议将训练总步长设置到%d以上。\033[0m"%(optimizer_type, wanted_step))
+            # print("\033[1;33;44m[Warning] 本次运行的总训练数据量为%d，Unfreeze_batch_size为%d，共训练%d个Epoch，计算出总训练步长为%d。\033[0m"%(num_train, Unfreeze_batch_size, UnFreeze_Epoch, total_step))
+            # print("\033[1;33;44m[Warning] 由于总训练步长为%d，小于建议总步长%d，建议设置总世代为%d。\033[0m"%(total_step, wanted_step, wanted_epoch))
         
     #------------------------------------------------------#
     #   主干特征提取网络特征通用，冻结训练可以加快训练速度
@@ -444,8 +444,8 @@ if __name__ == "__main__":
         if epoch_step == 0 or epoch_step_val == 0:
             raise ValueError("数据集过小，无法继续进行训练，请扩充数据集。")
 
-        train_dataset   = DeeplabDataset(train_lines, input_shape, num_classes, True, VOCdevkit_path)
-        val_dataset     = DeeplabDataset(val_lines, input_shape, num_classes, False, VOCdevkit_path)
+        train_dataset   = DeeplabDataset(train_lines, input_shape, num_classes, True, data_path)
+        val_dataset     = DeeplabDataset(val_lines, input_shape, num_classes, False, data_path)
 
         if distributed:
             train_sampler   = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True,)
@@ -468,11 +468,23 @@ if __name__ == "__main__":
         #   记录eval的map曲线
         #----------------------#
         if local_rank == 0:
-            eval_callback   = EvalCallback(model, input_shape, num_classes, val_lines, VOCdevkit_path, log_dir, Cuda, \
+            eval_callback   = EvalCallback(model, input_shape, num_classes, val_lines, data_path, log_dir, Cuda, \
                                             eval_flag=eval_flag, period=eval_period)
         else:
             eval_callback   = None
+
         
+        if eval_callback != None:
+            miou = eval_callback.mious[-1]
+        else:
+            miou = 0
+
+
+        # 使用早停机制
+        miou_threshold = 50  # mIoU的阈值，低于此值将重启训练
+        early_stopping = EarlyStopping(patience=7, verbose=False)
+
+                
         #---------------------------------------#
         #   开始模型训练
         #---------------------------------------#
@@ -526,11 +538,21 @@ if __name__ == "__main__":
 
             set_optimizer_lr(optimizer, lr_scheduler_func, epoch)
 
-            fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, epoch, 
+            val_loss = fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, epoch, 
                     epoch_step, epoch_step_val, gen, gen_val, UnFreeze_Epoch, Cuda, dice_loss, focal_loss, cls_weights, num_classes, fp16, scaler, save_period, save_dir, local_rank)
 
             if distributed:
                 dist.barrier()
 
+            early_stopping(val_loss, model, save_dir)
+
+            print("epoch num:", epoch)
+
+            if (epoch != 0 and early_stopping.early_stop):
+                print("Early stopping triggered. Stopping training.")
+                break
+        
         if local_rank == 0:
             loss_history.writer.close()
+
+

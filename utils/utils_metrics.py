@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
+import cv2
 
 
 def f_score(inputs, target, beta=1, smooth = 1e-5, threhold = 0.5):
@@ -121,7 +122,51 @@ def compute_mIoU(gt_dir, pred_dir, png_name_list, num_classes, name_classes=None
     #   在所有验证集图像上求所有类别平均的mIoU值，计算时忽略NaN值
     #-----------------------------------------------------------------#
     print('===> mIoU: ' + str(round(np.nanmean(IoUs) * 100, 2)) + '; mPA: ' + str(round(np.nanmean(PA_Recall) * 100, 2)) + '; Accuracy: ' + str(round(per_Accuracy(hist) * 100, 2)))  
-    return np.array(hist, np.int), IoUs, PA_Recall, Precision
+    return np.array(hist, np.int64), IoUs, PA_Recall, Precision
+
+def compute_Dice(gt_dir, pred_dir, png_name_list, num_classes, name_classes=None):
+    Dice_scores = np.zeros((num_classes,))
+    count = np.zeros((num_classes,))
+    
+    gt_imgs     = [cv2.imread(os.path.join(gt_dir, x + ".png"), 0) for x in png_name_list]
+    pred_imgs   = [cv2.imread(os.path.join(pred_dir, x + ".png"), 0) for x in png_name_list]
+
+    for idx in range(len(png_name_list)):
+        # 读取ground truth和预测图像
+        gt_img = np.array(gt_imgs[idx])
+        pred_img = np.array(pred_imgs[idx])
+
+        
+        for cls in range(num_classes):
+            gt_cls = (gt_img == cls).astype(np.int64)
+            pred_cls = (pred_img == cls).astype(np.int64)
+            
+            intersection = np.sum(gt_cls * pred_cls)
+            union = np.sum(gt_cls) + np.sum(pred_cls)
+            
+            if union == 0:
+                Dice_score = np.nan
+            else:
+                Dice_score = (2. * intersection) / union
+            
+            if not np.isnan(Dice_score):
+                Dice_scores[cls] += Dice_score
+                count[cls] += 1
+    
+    # 计算平均Dice分数时，避免除以零
+    valid_counts = count != 0
+    mean_Dice = np.nanmean(Dice_scores[valid_counts] / count[valid_counts])
+    
+    # if name_classes is not None:
+    #     for i in range(num_classes):
+    #         if count[i] != 0:
+    #             print('===> Dice of {}: {:.2f}'.format(name_classes[i], Dice_scores[i] / count[i] * 100))
+    #         else:
+    #             print('===> Dice of {}: N/A'.format(name_classes[i]))
+    print('===> mean Dice: {:.2f}'.format(mean_Dice * 100))
+    
+    return Dice_scores, mean_Dice
+
 
 def adjust_axes(r, t, fig, axes):
     bb                  = t.get_window_extent(renderer=r)

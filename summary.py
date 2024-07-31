@@ -8,8 +8,8 @@ from torchsummary import summary
 from nets.deeplabv3_plus import DeepLab
 
 if __name__ == "__main__":
-    input_shape     = [512, 512]
-    num_classes     = 21
+    input_shape     = [2016, 102]
+    num_classes     = 16
     backbone        = 'mobilenet'
     
     device  = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

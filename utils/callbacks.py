@@ -16,7 +16,7 @@ from PIL import Image
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from .utils import cvtColor, preprocess_input, resize_image
-from .utils_metrics import compute_mIoU
+from .utils_metrics import compute_mIoU, compute_Dice
 
 
 class LossHistory():
@@ -97,10 +97,14 @@ class EvalCallback():
         self.image_ids          = [image_id.split()[0] for image_id in image_ids]
         self.mious      = [0]
         self.epoches    = [0]
+        self.dices = [0]
         if self.eval_flag:
             with open(os.path.join(self.log_dir, "epoch_miou.txt"), 'a') as f:
                 f.write(str(0))
                 f.write("\n")
+            # with open(os.path.join(self.log_dir, "epoch_dice.txt"), 'a') as f:
+            #     f.write(str(0))
+            #     f.write("\n")
 
     def get_miou_png(self, image):
         #---------------------------------------------------------#
@@ -153,18 +157,25 @@ class EvalCallback():
     def on_epoch_end(self, epoch, model_eval):
         if epoch % self.period == 0 and self.eval_flag:
             self.net    = model_eval
-            gt_dir      = os.path.join(self.dataset_path, "VOC2007/SegmentationClass/")
+            gt_dir      = os.path.join(self.dataset_path, "labels/")
             pred_dir    = os.path.join(self.miou_out_path, 'detection-results')
             if not os.path.exists(self.miou_out_path):
                 os.makedirs(self.miou_out_path)
             if not os.path.exists(pred_dir):
                 os.makedirs(pred_dir)
-            print("Get miou.")
+            print("Get miou and dice.")
             for image_id in tqdm(self.image_ids):
                 #-------------------------------#
                 #   从文件中读取图像
                 #-------------------------------#
-                image_path  = os.path.join(self.dataset_path, "VOC2007/JPEGImages/"+image_id+".jpg")
+                image_path_1  = os.path.join(self.dataset_path, "images/"+image_id+".jpg")
+                image_path_2  = os.path.join(self.dataset_path, "images/"+image_id+".png")
+                if os.path.exists(image_path_1):
+                    image_path = image_path_1
+                elif os.path.exists(image_path_2):
+                    image_path = image_path_2
+                else:
+                    raise ValueError(f"Unsupported image format or file not found for {image_id}")
                 image       = Image.open(image_path)
                 #------------------------------#
                 #   获得预测txt
@@ -172,15 +183,22 @@ class EvalCallback():
                 image       = self.get_miou_png(image)
                 image.save(os.path.join(pred_dir, image_id + ".png"))
                         
-            print("Calculate miou.")
+            print("Calculate miou and dice.")
             _, IoUs, _, _ = compute_mIoU(gt_dir, pred_dir, self.image_ids, self.num_classes, None)  # 执行计算mIoU的函数
             temp_miou = np.nanmean(IoUs) * 100
+            _, mean_Dice = compute_Dice(gt_dir, pred_dir, self.image_ids, self.num_classes, None)
+            temp_dice = np.nanmean(mean_Dice) * 100
+
 
             self.mious.append(temp_miou)
+            self.dices.append(temp_dice)
             self.epoches.append(epoch)
 
             with open(os.path.join(self.log_dir, "epoch_miou.txt"), 'a') as f:
                 f.write(str(temp_miou))
+                f.write("\n")
+            with open(os.path.join(self.log_dir, "epoch_dice.txt"), 'a') as f:
+                f.write(str(temp_dice))
                 f.write("\n")
             
             plt.figure()
@@ -196,5 +214,20 @@ class EvalCallback():
             plt.cla()
             plt.close("all")
 
-            print("Get miou done.")
+
+            plt.figure()
+            plt.plot(self.epoches, self.dices, 'red', linewidth = 2, label='train dice')
+
+            plt.grid(True)
+            plt.xlabel('Epoch')
+            plt.ylabel('Dice')
+            plt.title('A Dice Curve')
+            plt.legend(loc="upper right")
+
+            plt.savefig(os.path.join(self.log_dir, "epoch_dice.png"))
+            plt.cla()
+            plt.close("all")
+
+            print("Get miou and dice done.")
             shutil.rmtree(self.miou_out_path)
+            

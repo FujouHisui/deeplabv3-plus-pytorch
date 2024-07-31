@@ -1,8 +1,10 @@
+import os
 import random
 
 import numpy as np
 import torch
 from PIL import Image
+
 
 #---------------------------------------------------------#
 #   将图像转换成RGB图像，防止灰度图在预测时报错。
@@ -86,3 +88,42 @@ def download_weights(backbone, model_dir="./model_data"):
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     load_state_dict_from_url(url, model_dir)
+
+class EarlyStopping:
+    def __init__(self, patience=7, verbose=False, delta=0):
+        """
+        :param patience: 在早停前可以容忍多少个epoch没有改进
+        :param verbose: 如果为True，则为每次提升时输出一条消息
+        :param delta: 重要改进的最小变化
+        """
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = np.Inf
+        self.delta = delta
+
+    def __call__(self, val_loss, model, save_dir):
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model, save_dir)
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            print(f'早停计数器: {self.counter}/{self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model, save_dir)
+            self.counter = 0
+
+    def save_checkpoint(self, val_loss, model, save_dir):
+        '''验证损失减少时保存模型'''
+        if self.verbose:
+            print(f'验证损失减少 ({self.val_loss_min:.6f} --> {val_loss:.6f}).  保存模型 ...')
+        # 保存模型的代码
+        torch.save(model.state_dict(), os.path.join(save_dir, "last_epoch_weights.pth"))
+        self.val_loss_min = val_loss

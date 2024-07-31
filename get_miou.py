@@ -22,20 +22,20 @@ if __name__ == "__main__":
     #------------------------------#
     #   分类个数+1、如2+1
     #------------------------------#
-    num_classes     = 21
+    num_classes     = 16
     #--------------------------------------------#
     #   区分的种类，和json_to_dataset里面的一样
     #--------------------------------------------#
-    name_classes    = ["background","aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+    name_classes    = ["background","tree-foliage", "tree-trunk", "bush", "fence", "structure", "dirt", "water", "rock", "log", "other-terrain", "sky", "grass", "mud","object","gravel"]
     # name_classes    = ["_background_","cat","dog"]
     #-------------------------------------------------------#
     #   指向VOC数据集所在的文件夹
     #   默认指向根目录下的VOC数据集
     #-------------------------------------------------------#
-    VOCdevkit_path  = 'VOCdevkit'
+    data_path  = 'datasets'
 
-    image_ids       = open(os.path.join(VOCdevkit_path, "VOC2007/ImageSets/Segmentation/val.txt"),'r').read().splitlines() 
-    gt_dir          = os.path.join(VOCdevkit_path, "VOC2007/SegmentationClass/")
+    image_ids       = open(os.path.join(data_path, "lists/val.txt"),'r').read().splitlines() 
+    gt_dir          = os.path.join(data_path, "labels/")
     miou_out_path   = "miou_out"
     pred_dir        = os.path.join(miou_out_path, 'detection-results')
 
@@ -49,7 +49,14 @@ if __name__ == "__main__":
 
         print("Get predict result.")
         for image_id in tqdm(image_ids):
-            image_path  = os.path.join(VOCdevkit_path, "VOC2007/JPEGImages/"+image_id+".jpg")
+            image_path_1 = os.path.join(data_path, "images/" + image_id + ".jpg")
+            image_path_2 = os.path.join(data_path, "images/" + image_id + ".png")
+            if os.path.exists(image_path_1):
+                image_path = image_path_1
+            elif os.path.exists(image_path_2):
+                image_path = image_path_2
+            else:
+                raise ValueError(f"Unsupported image format or file not found for {image_id}")
             image       = Image.open(image_path)
             image       = deeplab.get_miou_png(image)
             image.save(os.path.join(pred_dir, image_id + ".png"))
