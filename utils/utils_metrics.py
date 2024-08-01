@@ -152,20 +152,27 @@ def compute_Dice(gt_dir, pred_dir, png_name_list, num_classes, name_classes=None
             if not np.isnan(Dice_score):
                 Dice_scores[cls] += Dice_score
                 count[cls] += 1
-    
     # 计算平均Dice分数时，避免除以零
     valid_counts = count != 0
     mean_Dice = np.nanmean(Dice_scores[valid_counts] / count[valid_counts])
+
+    result = np.zeros(num_classes)
+    for i in range(num_classes):
+        if count[i] != 0:
+            result[i] = Dice_scores[i] / count[i]
+        else:
+            result[i] = 0.0
+                        
+
     
-    # if name_classes is not None:
-    #     for i in range(num_classes):
-    #         if count[i] != 0:
-    #             print('===> Dice of {}: {:.2f}'.format(name_classes[i], Dice_scores[i] / count[i] * 100))
-    #         else:
-    #             print('===> Dice of {}: N/A'.format(name_classes[i]))
-    print('===> mean Dice: {:.2f}'.format(mean_Dice * 100))
+    if name_classes is not None:
+        for i in range(num_classes):
+            if count[i] != 0:
+                print('===> Dice of {}: {:.2f}'.format(name_classes[i], Dice_scores[i] / count[i] * 100))
+            else:
+                print('===> Dice of {}: 0.00'.format(name_classes[i]))
     
-    return Dice_scores, mean_Dice
+    return result, mean_Dice
 
 
 def adjust_axes(r, t, fig, axes):
@@ -199,10 +206,15 @@ def draw_plot_func(values, name_classes, plot_title, x_label, output_path, tick_
         plt.show()
     plt.close()
 
-def show_results(miou_out_path, hist, IoUs, PA_Recall, Precision, name_classes, tick_font_size = 12):
+def show_results(miou_out_path, hist, IoUs, PA_Recall, Precision, name_classes, Dices, tick_font_size = 12):
+    
     draw_plot_func(IoUs, name_classes, "mIoU = {0:.2f}%".format(np.nanmean(IoUs)*100), "Intersection over Union", \
         os.path.join(miou_out_path, "mIoU.png"), tick_font_size = tick_font_size, plt_show = True)
     print("Save mIoU out to " + os.path.join(miou_out_path, "mIoU.png"))
+
+    draw_plot_func(Dices, name_classes, "mDice = {0:.2f}%".format(np.nanmean(Dices)*100), "mean Dice score", \
+        os.path.join(miou_out_path, "mDice.png"), tick_font_size = tick_font_size, plt_show = True)
+    print("Save mDice out to " + os.path.join(miou_out_path, "mDice.png"))
 
     draw_plot_func(PA_Recall, name_classes, "mPA = {0:.2f}%".format(np.nanmean(PA_Recall)*100), "Pixel Accuracy", \
         os.path.join(miou_out_path, "mPA.png"), tick_font_size = tick_font_size, plt_show = False)

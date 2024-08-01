@@ -170,12 +170,12 @@ if __name__ == "__main__":
     #   Unfreeze_batch_size     模型在解冻后的batch_size
     #------------------------------------------------------------------#
     UnFreeze_Epoch      = 100
-    Unfreeze_batch_size = 23
+    Unfreeze_batch_size = 22
     #------------------------------------------------------------------#
     #   Freeze_Train    是否进行冻结训练
     #                   默认先冻结主干训练后解冻训练。
     #------------------------------------------------------------------#
-    Freeze_Train        = False
+    Freeze_Train        = True
 
     #------------------------------------------------------------------#
     #   其它训练参数：学习率、优化器、学习率下降有关
@@ -481,8 +481,7 @@ if __name__ == "__main__":
 
 
         # 使用早停机制
-        miou_threshold = 50  # mIoU的阈值，低于此值将重启训练
-        early_stopping = EarlyStopping(patience=7, verbose=False)
+        early_stopping = EarlyStopping(patience=10, verbose=False)
 
                 
         #---------------------------------------#
@@ -546,7 +545,7 @@ if __name__ == "__main__":
 
             early_stopping(val_loss, model, save_dir)
 
-            print("epoch num:", epoch)
+            # print("epoch num:", epoch)
 
             if (epoch != 0 and early_stopping.early_stop):
                 print("Early stopping triggered. Stopping training.")
